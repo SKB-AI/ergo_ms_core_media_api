@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import mimetypes
 import logging
 import uuid
@@ -30,6 +31,10 @@ class ServeView(View):
         expires = request.GET.get('expires')
 
         if not signature or not expires:
+            logger.warning(
+                'Serve 400: отсутствуют параметры подписи, path=%s, has_signature=%s, has_expires=%s',
+                file_path, bool(signature), bool(expires),
+            )
             return JsonResponse(
                 {'error': 'Отсутствуют параметры подписи'},
                 status=400,
@@ -38,20 +43,41 @@ class ServeView(View):
         try:
             expires = int(expires)
         except (ValueError, TypeError):
+            logger.warning('Serve 400: некорректный expires, path=%s, expires_raw=%s', file_path, request.GET.get('expires'))
             return JsonResponse(
                 {'error': 'Некорректный параметр expires'},
                 status=400,
             )
 
-        if not verify_url(file_path, signature, expires, settings.SECRET_KEY):
+        verify_ok = verify_url(file_path, signature, expires, settings.SECRET_KEY)
+        if not verify_ok:
+            now_ts = int(time.time())
+            is_expired = now_ts > expires
+            logger.info(
+                'Serve 403: подпись недействительна или истекла, path=%s, expires=%s, now=%s, expired=%s',
+                file_path, expires, now_ts, is_expired,
+            )
             return JsonResponse(
                 {'error': 'Подпись недействительна или истекла'},
                 status=403,
             )
 
         storage = get_storage()
-
-        if not storage.exists(file_path):
+        try:
+            file_exists = storage.exists(file_path)
+        except Exception as e:
+            logger.exception('Serve: ошибка проверки существования файла, path=%s', file_path)
+            file_exists = False
+        if not file_exists:
+            resolved_hint = ''
+            try:
+                resolved_hint = getattr(storage, 'full_path', lambda p: '')(file_path)
+            except Exception:
+                pass
+            logger.info(
+                'Serve 404: файл не найден, path=%s, storage_root=%s, resolved=%s',
+                file_path, getattr(settings, 'MEDIA_STORAGE_PATH', ''), resolved_hint,
+            )
             return JsonResponse(
                 {'error': 'Файл не найден'},
                 status=404,
@@ -78,6 +104,7 @@ class ServeView(View):
         else:
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
+        logger.debug('Serve 200: path=%s, content_type=%s, size=%s', file_path, content_type, file_size)
         return response
 
     def _serve_range(self, storage, file_path, file_size, content_type, range_header):

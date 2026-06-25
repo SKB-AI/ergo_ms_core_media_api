@@ -99,7 +99,10 @@ class ServeView(View):
         response['Accept-Ranges'] = 'bytes'
 
         filename = os.path.basename(file_path)
-        if content_type.startswith(('image/', 'video/', 'audio/', 'text/')):
+        _UNSAFE_INLINE_TYPES = ('text/html', 'text/xml', 'application/xml', 'image/svg+xml', 'application/xhtml+xml')
+        if content_type in _UNSAFE_INLINE_TYPES:
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        elif content_type.startswith(('image/', 'video/', 'audio/', 'text/')):
             response['Content-Disposition'] = f'inline; filename="{filename}"'
         else:
             response['Content-Disposition'] = f'attachment; filename="{filename}"'

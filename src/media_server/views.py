@@ -4,6 +4,7 @@ import time
 import mimetypes
 import logging
 import uuid
+import ipaddress
 
 from django.conf import settings
 from django.http import (
@@ -211,9 +212,22 @@ class HealthView(View):
     """Проверка состояния медиа-сервиса."""
 
     def get(self, request):
+        if not getattr(settings, 'MEDIA_API_HEALTH_PUBLIC', True):
+            if not _is_internal_request(request):
+                return JsonResponse({'error': 'Forbidden'}, status=403)
+
         storage = get_storage()
         return JsonResponse({
             'status': 'ok',
             'storage_type': settings.MEDIA_STORAGE_TYPE,
             'storage_available': storage.is_available(),
         })
+
+
+def _is_internal_request(request) -> bool:
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    client_ip = forwarded.split(',')[0].strip() if forwarded else request.META.get('REMOTE_ADDR', '')
+    try:
+        return ipaddress.ip_address(client_ip).is_private or ipaddress.ip_address(client_ip).is_loopback
+    except ValueError:
+        return client_ip in ('localhost', '::1')

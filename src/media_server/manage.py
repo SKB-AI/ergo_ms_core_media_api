@@ -1,9 +1,11 @@
 import os
 import sys
 
+from media_server.deploy import get_settings_module
+
 
 def main():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'media_server.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', get_settings_module())
 
     try:
         from django.core.management import execute_from_command_line

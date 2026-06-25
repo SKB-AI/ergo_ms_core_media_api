@@ -1,0 +1,65 @@
+import environ
+
+from media_server.paths import SYSTEM_DIR
+
+env = environ.Env()
+_env_file = SYSTEM_DIR / '.env'
+if _env_file.exists():
+    env.read_env(str(_env_file))
+
+SECRET_KEY = env.str('API_SECRET_KEY', default='media-api-insecure-key')
+
+MEDIA_API_HOST = env.str('MEDIA_API_HOST', default='localhost')
+MEDIA_API_PORT = env.int('MEDIA_API_PORT', default=8003)
+MEDIA_API_PROTOCOL = env.str('MEDIA_API_PROTOCOL', default='http')
+
+MEDIA_STORAGE_TYPE = env.str('MEDIA_STORAGE_TYPE', default='local')
+MEDIA_STORAGE_PATH = env.str('MEDIA_STORAGE_PATH', default='') or str(SYSTEM_DIR / 'media')
+
+MEDIA_URL_EXPIRATION = env.int('MEDIA_URL_EXPIRATION', default=3600)
+MEDIA_UPLOAD_MAX_SIZE = env.int('MEDIA_UPLOAD_MAX_SIZE', default=104857600)
+MEDIA_UPLOAD_TOKEN_EXPIRATION = env.int('MEDIA_UPLOAD_TOKEN_EXPIRATION', default=300)
+
+MEDIA_API_BIND_HOST = env.str('MEDIA_API_BIND_HOST', default='')
+
+MEDIA_API_HEALTH_PUBLIC = env.bool('MEDIA_API_HEALTH_PUBLIC', default=False)
+
+MEDIA_API_UPLOAD_RATE = env.str('MEDIA_API_UPLOAD_RATE', default='30/minute')
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = MEDIA_UPLOAD_MAX_SIZE
+FILE_UPLOAD_MAX_MEMORY_SIZE = MEDIA_UPLOAD_MAX_SIZE
+
+INSTALLED_APPS = [
+    'corsheaders',
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'media_server.middleware.SecurityHeadersMiddleware',
+    'media_server.middleware.UploadRateLimitMiddleware',
+    'media_server.middleware.RequestLoggingMiddleware',
+]
+
+ROOT_URLCONF = 'media_server.urls'
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
+}
+
+CORS_ALLOW_ALL_ORIGINS = False
+
+CORS_ALLOW_CREDENTIALS = True
+
+LOGS_DIR = SYSTEM_DIR / 'logs'
+
+USE_TZ = True
+TIME_ZONE = 'UTC'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'

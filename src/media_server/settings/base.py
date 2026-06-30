@@ -20,6 +20,9 @@ MEDIA_URL_EXPIRATION = env.int('MEDIA_URL_EXPIRATION', default=3600)
 MEDIA_UPLOAD_MAX_SIZE = env.int('MEDIA_UPLOAD_MAX_SIZE', default=104857600)
 MEDIA_UPLOAD_TOKEN_EXPIRATION = env.int('MEDIA_UPLOAD_TOKEN_EXPIRATION', default=300)
 
+# Служебный ключ для internal API (core/api в режиме MEDIA_ACCESS_MODE=remote)
+MEDIA_API_INTERNAL_KEY = env.str('MEDIA_API_INTERNAL_KEY', default='').strip()
+
 MEDIA_API_BIND_HOST = env.str('MEDIA_API_BIND_HOST', default='')
 
 MEDIA_API_HEALTH_PUBLIC = env.bool('MEDIA_API_HEALTH_PUBLIC', default=False)

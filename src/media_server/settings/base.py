@@ -7,7 +7,10 @@ _env_file = SYSTEM_DIR / '.env'
 if _env_file.exists():
     env.read_env(str(_env_file))
 
-SECRET_KEY = env.str('API_SECRET_KEY', default='media-api-insecure-key')
+# Обязателен и должен совпадать с API_SECRET_KEY в core/api — им подписываются/проверяются
+# media-URL и upload-токены (см. signing.py). Без общего ключа подписи не сойдутся,
+# поэтому небезопасный дефолт недопустим (fail-fast, как в core/api).
+SECRET_KEY = env.str('API_SECRET_KEY')
 
 MEDIA_API_HOST = env.str('MEDIA_API_HOST', default='localhost')
 MEDIA_API_PORT = env.int('MEDIA_API_PORT', default=8003)

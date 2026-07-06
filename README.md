@@ -13,4 +13,4 @@
 | Загрузка и отдача файлов | [`.cursor/rules/media_api.mdc`](../../.cursor/rules/media_api.mdc) |
 | Безопасность | [`.cursor/rules/security.mdc`](../../.cursor/rules/security.mdc) |
 
-Серверная часть ядра, которая вызывает media_api: `core/api/src/core/utils/media_client.py`, `media_signing.py`. Порт по умолчанию — **8003** (`.env`, `MEDIA_API_BIND_PORT`).
+Серверная часть ядра, которая вызывает media_api: `core/api/src/core/utils/media_client/`, `media_signing.py`. Общая HMAC-логика подписи — `core/shared/media_hmac.py`. Порт по умолчанию — **8003** (`.env`, `MEDIA_API_BIND_PORT`).

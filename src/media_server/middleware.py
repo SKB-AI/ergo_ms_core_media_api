@@ -8,6 +8,8 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
+from media_server.maintenance import MAINTENANCE_DETAIL, is_maintenance_enabled
+
 logger = logging.getLogger('media_server.middleware')
 
 _RATE_RE = re.compile(r'^(\d+)/(second|minute|hour|day)$')
@@ -21,6 +23,21 @@ def _parse_rate(rate: str) -> tuple[int, float]:
     unit = match.group(2)
     windows = {'second': 1.0, 'minute': 60.0, 'hour': 3600.0, 'day': 86400.0}
     return count, windows.get(unit, 60.0)
+
+
+class MaintenanceMiddleware(MiddlewareMixin):
+    """Блокировка Media API при включённом режиме технических works."""
+
+    def process_request(self, request):
+        if not is_maintenance_enabled():
+            return None
+        response = JsonResponse(
+            {'code': 'maintenance', 'detail': MAINTENANCE_DETAIL},
+            status=503,
+        )
+        response['X-Maintenance-Mode'] = '1'
+        response['Retry-After'] = '3600'
+        return response
 
 
 class SecurityHeadersMiddleware(MiddlewareMixin):

@@ -41,6 +41,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'media_server.middleware.MaintenanceMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'media_server.middleware.SecurityHeadersMiddleware',
     'media_server.middleware.UploadRateLimitMiddleware',

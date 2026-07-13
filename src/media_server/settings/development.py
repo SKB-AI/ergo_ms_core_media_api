@@ -25,36 +25,7 @@ CORS_ALLOWED_ORIGINS = env.list(  # noqa: F405
 
 MEDIA_API_HEALTH_PUBLIC = True
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '[{asctime}] {levelname} {name}: {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': str(LOGS_DIR / 'media_api.log'),  # noqa: F405
-            'formatter': 'verbose',
-            'encoding': 'utf-8',
-        },
-    },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'INFO',
-    },
-    'loggers': {
-        'media_server': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
-}
+from media_server.logging_config import build_media_logging_config
+from media_server.paths import LOGS_DIR, SYSTEM_DIR
+
+LOGGING = build_media_logging_config(LOGS_DIR, SYSTEM_DIR / '.env')

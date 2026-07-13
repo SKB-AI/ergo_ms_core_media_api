@@ -18,6 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .signing import verify_url, verify_upload_token
 from .storage import get_storage
+from core.shared.system_version import get_system_version
 
 logger = logging.getLogger('media_server.views')
 
@@ -221,6 +222,7 @@ class HealthView(View):
             'status': 'ok',
             'storage_type': settings.MEDIA_STORAGE_TYPE,
             'storage_available': storage.is_available(),
+            'system_version': get_system_version(),
         })
 
 

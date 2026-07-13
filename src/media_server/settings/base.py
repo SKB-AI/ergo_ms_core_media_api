@@ -1,6 +1,6 @@
 import environ
 
-from media_server.paths import SYSTEM_DIR
+from media_server.paths import LOGS_DIR, SYSTEM_DIR
 
 env = environ.Env()
 _env_file = SYSTEM_DIR / '.env'
@@ -60,8 +60,6 @@ DATABASES = {
 CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
-
-LOGS_DIR = SYSTEM_DIR / 'logs'
 
 USE_TZ = True
 TIME_ZONE = 'UTC'

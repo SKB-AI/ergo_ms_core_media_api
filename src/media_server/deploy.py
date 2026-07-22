@@ -34,16 +34,30 @@ def get_default_bind_host() -> str:
 
 
 def validate_production_config(*, secret_key: str, allowed_hosts: list) -> None:
-    from django.core.exceptions import ImproperlyConfigured
+    """
+    Проверяет небезопасную production-конфигурацию media_api.
 
+    Раньше поднимал ImproperlyConfigured и media_api не запускался. Теперь пишет
+    предупреждение и продолжает старт — ответственность за безопасность значений
+    в production остаётся на администраторе.
+    """
     if secret_key in INSECURE_SECRET_KEYS:
-        raise ImproperlyConfigured(
-            'MEDIA_API_DEPLOY_TYPE=production требует надёжный API_SECRET_KEY в .env '
-            '(не используйте значение по умолчанию).'
+        _warn_production_config(
+            'MEDIA_API_DEPLOY_TYPE=production: задан небезопасный API_SECRET_KEY '
+            '(значение по умолчанию). Укажите надёжный API_SECRET_KEY в .env.'
         )
 
     unsafe_hosts = {'0.0.0.0', '*'}
     if unsafe_hosts.intersection(set(allowed_hosts)):
-        raise ImproperlyConfigured(
-            'MEDIA_API_ALLOWED_HOSTS не должен содержать 0.0.0.0 или * в production.'
+        _warn_production_config(
+            'MEDIA_API_DEPLOY_TYPE=production: MEDIA_API_ALLOWED_HOSTS содержит '
+            '0.0.0.0 или * — в production укажите конкретные хосты.'
         )
+
+
+def _warn_production_config(message: str) -> None:
+    import sys
+    import warnings
+
+    warnings.warn(message, stacklevel=2)
+    print(f'[WARNING] {message}', file=sys.stderr)

@@ -20,7 +20,7 @@ MEDIA_STORAGE_TYPE = env.str('MEDIA_STORAGE_TYPE', default='local')
 MEDIA_STORAGE_PATH = env.str('MEDIA_STORAGE_PATH', default='') or str(SYSTEM_DIR / 'media')
 
 MEDIA_URL_EXPIRATION = env.int('MEDIA_URL_EXPIRATION', default=3600)
-MEDIA_UPLOAD_MAX_SIZE = env.int('MEDIA_UPLOAD_MAX_SIZE', default=104857600)
+MEDIA_UPLOAD_MAX_SIZE = env.int('MEDIA_UPLOAD_MAX_SIZE', default=524288000)
 MEDIA_UPLOAD_TOKEN_EXPIRATION = env.int('MEDIA_UPLOAD_TOKEN_EXPIRATION', default=300)
 
 # Служебный ключ для internal API (core/api в режиме MEDIA_ACCESS_MODE=remote)

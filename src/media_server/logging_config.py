@@ -17,6 +17,17 @@ def _load_log_env():
     return log_env
 
 
+@lru_cache(maxsize=1)
+def _load_log_format():
+    """Общий формат с API (core/api/src/config/log_format.py)."""
+    api_src = Path(__file__).resolve().parents[4] / 'core' / 'api' / 'src'
+    if str(api_src) not in sys.path:
+        sys.path.insert(0, str(api_src))
+    from src.config.log_format import verbose_formatter_dict
+
+    return verbose_formatter_dict()
+
+
 def build_media_logging_config(logs_dir: Path, env_file: Path) -> dict:
     project_root = env_file.parent
     le = _load_log_env()
@@ -42,7 +53,7 @@ def build_media_logging_config(logs_dir: Path, env_file: Path) -> dict:
     if console_enabled:
         handlers['console'] = {
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
+            'formatter': 'verbose',
             'level': console_level,
         }
         media_handlers.append('console')
@@ -51,17 +62,7 @@ def build_media_logging_config(logs_dir: Path, env_file: Path) -> dict:
     return {
         'version': 1,
         'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': '[{levelname}] {asctime} {name} {module} {message}',
-                'style': '{',
-                'datefmt': '%Y-%m-%d %H:%M:%S',
-            },
-            'simple': {
-                'format': '[{levelname}] {name}: {message}',
-                'style': '{',
-            },
-        },
+        'formatters': _load_log_format(),
         'handlers': handlers,
         'root': {
             'handlers': root_handlers,

@@ -20,9 +20,10 @@ def _load_log_env():
 @lru_cache(maxsize=1)
 def _load_log_format():
     """Общий формат с API (core/api/src/config/log_format.py)."""
-    api_src = Path(__file__).resolve().parents[4] / 'core' / 'api' / 'src'
-    if str(api_src) not in sys.path:
-        sys.path.insert(0, str(api_src))
+    # В path нужен core/api, иначе `from src.config...` не резолвится.
+    api_dir = Path(__file__).resolve().parents[4] / 'core' / 'api'
+    if str(api_dir) not in sys.path:
+        sys.path.insert(0, str(api_dir))
     from src.config.log_format import verbose_formatter_dict
 
     return verbose_formatter_dict()

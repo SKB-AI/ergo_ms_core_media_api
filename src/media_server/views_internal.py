@@ -1,6 +1,7 @@
 """Служебные эндпоинты media_api для core/api (режим MEDIA_ACCESS_MODE=remote)."""
 
 import hmac
+import ipaddress
 import logging
 import mimetypes
 import os
@@ -13,10 +14,34 @@ from .storage import get_storage
 
 logger = logging.getLogger('media_server.internal')
 
+_UNSAFE_INLINE_TYPES = (
+    'text/html', 'text/xml', 'application/xml', 'image/svg+xml', 'application/xhtml+xml',
+)
+
+
+def _client_ip(request) -> str:
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return (request.META.get('REMOTE_ADDR') or '').strip()
+
+
+def _is_private_or_loopback(ip: str) -> bool:
+    if not ip:
+        return False
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return bool(addr.is_private or addr.is_loopback or addr.is_link_local)
+
 
 def _is_internal_authorized(request) -> bool:
     expected = getattr(settings, 'MEDIA_API_INTERNAL_KEY', '') or ''
     if not expected:
+        return False
+    # Internal API только из private/loopback сети (defense-in-depth к shared secret).
+    if not _is_private_or_loopback(_client_ip(request)):
         return False
     provided = request.headers.get('X-Media-Internal-Key', '')
     return hmac.compare_digest(provided, expected)
@@ -74,7 +99,10 @@ class InternalReadView(View):
         response = FileResponse(fh, content_type=content_type)
         response['Content-Length'] = storage.size(file_path)
         filename = os.path.basename(file_path)
-        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        if content_type in _UNSAFE_INLINE_TYPES:
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        else:
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
         return response
 
 
@@ -93,7 +121,10 @@ class InternalWriteView(View):
 
         storage = get_storage()
         from io import BytesIO
-        saved_path = storage.save(file_path, BytesIO(body))
+        try:
+            saved_path = storage.save(file_path, BytesIO(body))
+        except PermissionError:
+            return JsonResponse({'error': 'Недопустимый путь'}, status=400)
 
         logger.info('Internal write: path=%s, size=%d', saved_path, len(body))
         return JsonResponse({'path': saved_path, 'size': len(body)}, status=201)

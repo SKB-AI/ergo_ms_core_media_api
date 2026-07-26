@@ -37,27 +37,23 @@ def validate_production_config(*, secret_key: str, allowed_hosts: list) -> None:
     """
     Проверяет небезопасную production-конфигурацию media_api.
 
-    Раньше поднимал ImproperlyConfigured и media_api не запускался. Теперь пишет
-    предупреждение и продолжает старт — ответственность за безопасность значений
-    в production остаётся на администраторе.
+    Небезопасный API_SECRET_KEY и hosts 0.0.0.0/* — предупреждение в консоль (без остановки).
     """
+    import warnings
+
     if secret_key in INSECURE_SECRET_KEYS:
-        _warn_production_config(
+        warnings.warn(
             'MEDIA_API_DEPLOY_TYPE=production: задан небезопасный API_SECRET_KEY '
-            '(значение по умолчанию). Укажите надёжный API_SECRET_KEY в .env.'
+            '(значение по умолчанию). Укажите надёжный API_SECRET_KEY в .env.',
+            UserWarning,
+            stacklevel=2,
         )
 
     unsafe_hosts = {'0.0.0.0', '*'}
     if unsafe_hosts.intersection(set(allowed_hosts)):
-        _warn_production_config(
+        warnings.warn(
             'MEDIA_API_DEPLOY_TYPE=production: MEDIA_API_ALLOWED_HOSTS содержит '
-            '0.0.0.0 или * — в production укажите конкретные хосты.'
+            '0.0.0.0 или * — в production укажите конкретные хосты.',
+            UserWarning,
+            stacklevel=2,
         )
-
-
-def _warn_production_config(message: str) -> None:
-    import sys
-    import warnings
-
-    warnings.warn(message, stacklevel=2)
-    print(f'[WARNING] {message}', file=sys.stderr)

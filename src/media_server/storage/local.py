@@ -1,6 +1,6 @@
-import os
 import logging
-from pathlib import Path
+import os
+from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
 from .base import BaseStorage
@@ -18,10 +18,26 @@ class LocalFileStorage(BaseStorage):
     def root(self) -> Path:
         return self._root
 
+    def _normalize_relative(self, path: str) -> str:
+        """Нормализует относительный путь; отклоняет абсолютные и ``..``."""
+        if path is None:
+            raise PermissionError('Путь не задан')
+        raw = str(path).replace('\\', '/').strip()
+        if not raw or raw.startswith('/') or (len(raw) >= 2 and raw[1] == ':'):
+            raise PermissionError(f'Попытка выхода за пределы хранилища: {path}')
+        posix = PurePosixPath(raw)
+        if posix.is_absolute() or '..' in posix.parts:
+            raise PermissionError(f'Попытка выхода за пределы хранилища: {path}')
+        normalized = str(PurePosixPath(*[p for p in posix.parts if p not in ('', '.')]))
+        if normalized in ('', '.'):
+            raise PermissionError(f'Попытка выхода за пределы хранилища: {path}')
+        return normalized
+
     def _resolve_path(self, path: str) -> Path:
-        resolved = (self._root / path).resolve()
-        if not str(resolved).startswith(str(self._root)):
-            raise PermissionError(f"Попытка выхода за пределы хранилища: {path}")
+        relative = self._normalize_relative(path)
+        resolved = (self._root / relative).resolve()
+        if not resolved.is_relative_to(self._root):
+            raise PermissionError(f'Попытка выхода за пределы хранилища: {path}')
         return resolved
 
     def save(self, path: str, content: BinaryIO) -> str:

@@ -11,6 +11,7 @@ from django.http import (
     FileResponse,
     HttpResponse,
     JsonResponse,
+    StreamingHttpResponse,
 )
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -127,12 +128,27 @@ class ServeView(View):
             return response
 
         length = end - start + 1
-        fh = storage.open(file_path)
-        fh.seek(start)
-        data = fh.read(length)
-        fh.close()
+        chunk_size = 64 * 1024
 
-        response = HttpResponse(data, content_type=content_type, status=206)
+        def _iter_range():
+            fh = storage.open(file_path)
+            try:
+                fh.seek(start)
+                remaining = length
+                while remaining > 0:
+                    chunk = fh.read(min(chunk_size, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+            finally:
+                fh.close()
+
+        response = StreamingHttpResponse(
+            _iter_range(),
+            content_type=content_type,
+            status=206,
+        )
         response['Content-Length'] = length
         response['Content-Range'] = f'bytes {start}-{end}/{file_size}'
         response['Accept-Ranges'] = 'bytes'
@@ -168,7 +184,12 @@ class UploadView(View):
                 status=400,
             )
 
-        max_size = payload.get('max_size', settings.MEDIA_UPLOAD_MAX_SIZE)
+        configured_max = int(getattr(settings, 'MEDIA_UPLOAD_MAX_SIZE', 524288000))
+        token_max = payload.get('max_size', configured_max)
+        try:
+            max_size = min(int(token_max), configured_max)
+        except (TypeError, ValueError):
+            max_size = configured_max
         if uploaded_file.size > max_size:
             return JsonResponse(
                 {'error': f'Файл превышает допустимый размер ({max_size} байт)'},
@@ -184,14 +205,19 @@ class UploadView(View):
                     status=415,
                 )
 
-        target_dir = payload.get('target_dir', '')
+        target_dir = str(payload.get('target_dir', '') or '').replace('\\', '/').strip().strip('/')
+        if '..' in target_dir.split('/'):
+            return JsonResponse({'error': 'Недопустимый target_dir'}, status=400)
         file_uuid = str(uuid.uuid4())
         _, ext = os.path.splitext(uploaded_file.name)
         save_name = f"{file_uuid}{ext}"
-        save_path = os.path.join(target_dir, save_name) if target_dir else save_name
+        save_path = f'{target_dir}/{save_name}' if target_dir else save_name
 
         storage = get_storage()
-        saved_path = storage.save(save_path, uploaded_file)
+        try:
+            saved_path = storage.save(save_path, uploaded_file)
+        except PermissionError:
+            return JsonResponse({'error': 'Недопустимый путь загрузки'}, status=400)
 
         logger.info(
             "Файл загружен: user_id=%s, path=%s, size=%d",

@@ -15,6 +15,18 @@ logger = logging.getLogger('media_server.middleware')
 _RATE_RE = re.compile(r'^(\d+)/(second|minute|hour|day)$')
 
 
+def _silence_wsgi_runserver_access() -> None:
+    """Отключает встроенный access Django runserver — остаётся RequestLoggingMiddleware."""
+    try:
+        from django.core.servers.basehttp import WSGIRequestHandler
+    except Exception:
+        return
+    if getattr(WSGIRequestHandler, '_ergo_access_silenced', False):
+        return
+    WSGIRequestHandler.log_message = lambda self, format, *args: None  # noqa: ARG005
+    WSGIRequestHandler._ergo_access_silenced = True  # type: ignore[attr-defined]
+
+
 def _parse_rate(rate: str) -> tuple[int, float]:
     match = _RATE_RE.match((rate or '').strip().lower())
     if not match:
@@ -103,22 +115,22 @@ class UploadRateLimitMiddleware(MiddlewareMixin):
 
 
 class RequestLoggingMiddleware(MiddlewareMixin):
-    """Логирует входящие запросы и время обработки."""
+    """HTTP access в том же формате, что AccessLogMiddleware API."""
 
-    def process_request(self, request):
-        request._start_time = time.time()
+    _access_logger = logging.getLogger('django.server')
+
+    def __init__(self, get_response):
+        super().__init__(get_response)
+        _silence_wsgi_runserver_access()
 
     def process_response(self, request, response):
-        start_time = getattr(request, '_start_time', None)
-        duration_ms = 0
-        if start_time:
-            duration_ms = (time.time() - start_time) * 1000
-
-        logger.info(
-            "%s %s -> %d (%.1f ms)",
-            request.method,
-            request.get_full_path(),
-            response.status_code,
-            duration_ms,
-        )
+        try:
+            method = request.method or '-'
+            # path без query — без риска утечки токенов из query string
+            path = request.path or '/'
+            proto = request.META.get('SERVER_PROTOCOL', 'HTTP/1.1')
+            status = getattr(response, 'status_code', '-')
+            self._access_logger.info('"%s %s %s" %s', method, path, proto, status)
+        except Exception:
+            pass
         return response

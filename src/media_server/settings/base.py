@@ -37,6 +37,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = MEDIA_UPLOAD_MAX_SIZE
 
 INSTALLED_APPS = [
     'corsheaders',
+    'media_server',  # management commands (dev)
 ]
 
 MIDDLEWARE = [
@@ -49,6 +50,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'media_server.urls'
+ASGI_APPLICATION = 'media_server.asgi.application'
+WSGI_APPLICATION = 'media_server.wsgi.application'
 
 DATABASES = {
     'default': {

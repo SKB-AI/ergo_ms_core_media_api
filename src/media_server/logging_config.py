@@ -86,9 +86,19 @@ def build_media_logging_config(logs_dir: Path, env_file: Path) -> dict:
                 'level': 'WARNING',
                 'propagate': False,
             },
+            'daphne.server': {
+                'handlers': media_handlers,
+                'level': 'INFO',
+                'propagate': False,
+            },
             'media_server': {
                 'handlers': media_handlers,
                 'level': file_level,
+                'propagate': False,
+            },
+            'media_server.commands': {
+                'handlers': media_handlers,
+                'level': 'INFO',
                 'propagate': False,
             },
         },

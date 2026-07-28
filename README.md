@@ -16,4 +16,4 @@
 
 Серверная часть ядра, которая вызывает media_api: `core/api/src/core/utils/media_client/`, `media_signing.py`. Общая HMAC-логика подписи — `core/shared/media_hmac.py`. Порт по умолчанию — **8003** (`.env`, `MEDIA_API_BIND_PORT`).
 
-За nginx задайте `MEDIA_API_URL` или `MEDIA_API_HOST` / `MEDIA_API_PROTOCOL` — см. [`core/deployment/nginx/env.example`](../deployment/nginx/env.example).
+За nginx задайте `MEDIA_API_URL` или `MEDIA_API_HOST` / `MEDIA_API_PROTOCOL` — см. [`env/nginx.env.example`](../../env/nginx.env.example).

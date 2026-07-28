@@ -1,11 +1,17 @@
+import sys
+
 import environ
 
 from media_server.paths import SYSTEM_DIR
 
+_DEPLOYMENT_DIR = SYSTEM_DIR / 'core' / 'deployment'
+if str(_DEPLOYMENT_DIR) not in sys.path:
+    sys.path.insert(0, str(_DEPLOYMENT_DIR))
+
+from env_file_loader import apply_project_env_to_environ  # noqa: E402
+
 _env = environ.Env()
-_env_file = SYSTEM_DIR / '.env'
-if _env_file.exists():
-    _env.read_env(str(_env_file))
+apply_project_env_to_environ(SYSTEM_DIR, override_existing=False)
 
 INSECURE_SECRET_KEYS = frozenset({
     '',
@@ -16,7 +22,12 @@ INSECURE_SECRET_KEYS = frozenset({
 
 
 def get_deploy_type() -> str:
-    return _env.str('MEDIA_API_DEPLOY_TYPE', default='development').strip().lower()
+    """ERGO_ENV; явный MEDIA_API_DEPLOY_TYPE перекрывает."""
+    import os
+
+    from ergo_modes import effective_deploy_type
+
+    return effective_deploy_type(os.environ, override_key='MEDIA_API_DEPLOY_TYPE')
 
 
 def is_production() -> bool:

@@ -115,9 +115,27 @@ class InternalWriteView(View):
         if not _is_internal_authorized(request):
             return _forbidden()
 
+        max_size = int(getattr(settings, 'MEDIA_UPLOAD_MAX_SIZE', 524288000))
+        content_length = request.META.get('CONTENT_LENGTH')
+        if content_length is not None and str(content_length).strip() != '':
+            try:
+                declared = int(content_length)
+            except (TypeError, ValueError):
+                declared = None
+            if declared is not None and declared > max_size:
+                return JsonResponse(
+                    {'error': f'Файл превышает допустимый размер ({max_size} байт)'},
+                    status=413,
+                )
+
         body = request.body
         if not body:
             return JsonResponse({'error': 'Пустое тело запроса'}, status=400)
+        if len(body) > max_size:
+            return JsonResponse(
+                {'error': f'Файл превышает допустимый размер ({max_size} байт)'},
+                status=413,
+            )
 
         storage = get_storage()
         from io import BytesIO

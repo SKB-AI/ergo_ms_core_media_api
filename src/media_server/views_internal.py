@@ -115,7 +115,9 @@ class InternalWriteView(View):
         if not _is_internal_authorized(request):
             return _forbidden()
 
-        max_size = int(getattr(settings, 'MEDIA_UPLOAD_MAX_SIZE', 524288000))
+        default_max = int(getattr(settings, 'MEDIA_UPLOAD_MAX_SIZE', 524288000))
+        hard_max = int(getattr(settings, 'MEDIA_UPLOAD_HARD_MAX_SIZE', default_max) or default_max)
+        max_size = max(hard_max, default_max)
         content_length = request.META.get('CONTENT_LENGTH')
         if content_length is not None and str(content_length).strip() != '':
             try:

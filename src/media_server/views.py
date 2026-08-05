@@ -185,12 +185,15 @@ class UploadView(View):
                 status=400,
             )
 
-        configured_max = int(getattr(settings, 'MEDIA_UPLOAD_MAX_SIZE', 524288000))
-        token_max = payload.get('max_size', configured_max)
+        default_max = int(getattr(settings, 'MEDIA_UPLOAD_MAX_SIZE', 524288000))
+        hard_max = int(getattr(settings, 'MEDIA_UPLOAD_HARD_MAX_SIZE', default_max) or default_max)
+        if hard_max < default_max:
+            hard_max = default_max
+        token_max = payload.get('max_size', default_max)
         try:
-            max_size = min(int(token_max), configured_max)
+            max_size = min(int(token_max), hard_max)
         except (TypeError, ValueError):
-            max_size = configured_max
+            max_size = default_max
         if uploaded_file.size > max_size:
             return JsonResponse(
                 {'error': f'Файл превышает допустимый размер ({max_size} байт)'},

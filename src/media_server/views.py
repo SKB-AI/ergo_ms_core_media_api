@@ -4,7 +4,6 @@ import time
 import mimetypes
 import logging
 import uuid
-import ipaddress
 
 from django.conf import settings
 from django.http import (
@@ -17,6 +16,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from .client_ip import is_private_or_loopback, resolve_client_ip
 from .signing import verify_url, verify_upload_token
 from .storage import get_storage
 from core.shared.system_version import get_system_version
@@ -257,9 +257,4 @@ class HealthView(View):
 
 
 def _is_internal_request(request) -> bool:
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    client_ip = forwarded.split(',')[0].strip() if forwarded else request.META.get('REMOTE_ADDR', '')
-    try:
-        return ipaddress.ip_address(client_ip).is_private or ipaddress.ip_address(client_ip).is_loopback
-    except ValueError:
-        return client_ip in ('localhost', '::1')
+    return is_private_or_loopback(resolve_client_ip(request))

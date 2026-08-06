@@ -1,7 +1,6 @@
 """Служебные эндпоинты media_api для core/api (режим MEDIA_ACCESS_MODE=remote)."""
 
 import hmac
-import ipaddress
 import logging
 import mimetypes
 import os
@@ -10,6 +9,7 @@ from django.conf import settings
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.views import View
 
+from .client_ip import is_private_or_loopback, resolve_client_ip
 from .storage import get_storage
 
 logger = logging.getLogger('media_server.internal')
@@ -20,20 +20,7 @@ _UNSAFE_INLINE_TYPES = (
 
 
 def _client_ip(request) -> str:
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return (request.META.get('REMOTE_ADDR') or '').strip()
-
-
-def _is_private_or_loopback(ip: str) -> bool:
-    if not ip:
-        return False
-    try:
-        addr = ipaddress.ip_address(ip)
-    except ValueError:
-        return False
-    return bool(addr.is_private or addr.is_loopback or addr.is_link_local)
+    return resolve_client_ip(request)
 
 
 def _is_internal_authorized(request) -> bool:
@@ -41,7 +28,8 @@ def _is_internal_authorized(request) -> bool:
     if not expected:
         return False
     # Internal API только из private/loopback сети (defense-in-depth к shared secret).
-    if not _is_private_or_loopback(_client_ip(request)):
+    # IP — через resolve_client_ip: XFF только от MEDIA_API_TRUSTED_PROXIES.
+    if not is_private_or_loopback(_client_ip(request)):
         return False
     provided = request.headers.get('X-Media-Internal-Key', '')
     return hmac.compare_digest(provided, expected)

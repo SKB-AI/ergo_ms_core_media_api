@@ -8,6 +8,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
+from media_server.client_ip import resolve_client_ip
 from media_server.maintenance import MAINTENANCE_DETAIL, is_maintenance_enabled
 
 logger = logging.getLogger('media_server.middleware')
@@ -108,10 +109,8 @@ class UploadRateLimitMiddleware(MiddlewareMixin):
 
     @staticmethod
     def _client_ip(request) -> str:
-        forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-        if forwarded:
-            return forwarded.split(',')[0].strip()
-        return request.META.get('REMOTE_ADDR', 'unknown')
+        ip = resolve_client_ip(request)
+        return ip or 'unknown'
 
 
 class RequestLoggingMiddleware(MiddlewareMixin):

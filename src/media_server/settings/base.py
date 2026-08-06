@@ -56,6 +56,10 @@ MEDIA_UPLOAD_TOKEN_EXPIRATION = env.int('MEDIA_UPLOAD_TOKEN_EXPIRATION', default
 # Служебный ключ для internal API (core/api в режиме MEDIA_ACCESS_MODE=remote)
 MEDIA_API_INTERNAL_KEY = env.str('MEDIA_API_INTERNAL_KEY', default='').strip()
 
+# Доверенные прокси (IP/CIDR через запятую). Пустой список — X-Forwarded-For
+# игнорируется, клиентский IP = REMOTE_ADDR (безопасно при прямом доступе).
+MEDIA_API_TRUSTED_PROXIES = env.list('MEDIA_API_TRUSTED_PROXIES', default=[])
+
 MEDIA_API_BIND_HOST = env.str('MEDIA_API_BIND_HOST', default='')
 
 MEDIA_API_HEALTH_PUBLIC = env.bool('MEDIA_API_HEALTH_PUBLIC', default=False)

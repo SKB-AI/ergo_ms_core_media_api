@@ -15,11 +15,14 @@ from env_file_loader import apply_project_env_to_environ  # noqa: E402
 _env = environ.Env()
 apply_project_env_to_environ(SYSTEM_DIR, override_existing=False)
 
+# Legacy alias: список живёт в security.secret_validation (подключается при validate).
 INSECURE_SECRET_KEYS = frozenset({
     '',
+    'secret_key',
+    'changeme',
+    'django-insecure',
     'secret-key',
     'media-api-insecure-key',
-    'django-insecure',
 })
 
 ASGI_APPLICATION = 'media_server.asgi:application'
@@ -111,17 +114,17 @@ def validate_production_config(*, secret_key: str, allowed_hosts: list) -> None:
     """
     Проверяет небезопасную production-конфигурацию media_api.
 
-    Небезопасный API_SECRET_KEY и hosts 0.0.0.0/* — предупреждение в консоль (без остановки).
+    Небезопасный API_SECRET_KEY — остановка запуска.
+    Hosts 0.0.0.0/* — предупреждение в консоль.
     """
     import warnings
 
-    if secret_key in INSECURE_SECRET_KEYS:
-        warnings.warn(
-            'MEDIA_API_DEPLOY_TYPE=production: задан небезопасный API_SECRET_KEY '
-            '(значение по умолчанию). Укажите надёжный API_SECRET_KEY в .env.',
-            UserWarning,
-            stacklevel=2,
-        )
+    from security.secret_validation import validate_production_secret_key
+
+    try:
+        validate_production_secret_key(secret_key)
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
 
     unsafe_hosts = {'0.0.0.0', '*'}
     if unsafe_hosts.intersection(set(allowed_hosts)):

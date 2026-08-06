@@ -17,6 +17,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from .client_ip import is_private_or_loopback, resolve_client_ip
+from .content_validation import ContentValidationError, validate_upload
 from .signing import verify_url, verify_upload_token
 from .storage import get_storage
 from core.shared.system_version import get_system_version
@@ -201,13 +202,16 @@ class UploadView(View):
             )
 
         allowed_types = payload.get('allowed_types')
-        if allowed_types:
-            file_ext = os.path.splitext(uploaded_file.name)[1].lower().lstrip('.')
-            if file_ext not in allowed_types:
-                return JsonResponse(
-                    {'error': f'Тип файла .{file_ext} не разрешён'},
-                    status=415,
-                )
+        content_mode = getattr(settings, 'MEDIA_API_CONTENT_VALIDATION', 'extension')
+        try:
+            validate_upload(
+                uploaded_file.name,
+                uploaded_file,
+                allowed_types=allowed_types,
+                mode=content_mode,
+            )
+        except ContentValidationError as exc:
+            return JsonResponse({'error': exc.message}, status=exc.status_code)
 
         target_dir = str(payload.get('target_dir', '') or '').replace('\\', '/').strip().strip('/')
         if '..' in target_dir.split('/'):

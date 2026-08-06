@@ -10,6 +10,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.views import View
 
 from .client_ip import is_private_or_loopback, resolve_client_ip
+from .content_validation import ContentValidationError, validate_bytes
 from .storage import get_storage
 
 logger = logging.getLogger('media_server.internal')
@@ -126,6 +127,12 @@ class InternalWriteView(View):
                 {'error': f'Файл превышает допустимый размер ({max_size} байт)'},
                 status=413,
             )
+
+        content_mode = getattr(settings, 'MEDIA_API_CONTENT_VALIDATION', 'extension')
+        try:
+            validate_bytes(file_path, body, mode=content_mode)
+        except ContentValidationError as exc:
+            return JsonResponse({'error': exc.message}, status=exc.status_code)
 
         storage = get_storage()
         from io import BytesIO

@@ -19,7 +19,12 @@ from security.profile_defaults import merge_security_profile_defaults  # noqa: E
 
 def _media_security_merged() -> dict[str, str]:
     subset: dict[str, str] = {}
-    for key in ('ERGO_SECURITY', 'MEDIA_URL_EXPIRATION', 'MEDIA_API_UPLOAD_RATE'):
+    for key in (
+        'ERGO_SECURITY',
+        'MEDIA_URL_EXPIRATION',
+        'MEDIA_API_UPLOAD_RATE',
+        'MEDIA_API_CONTENT_VALIDATION',
+    ):
         raw = os.environ.get(key)
         if raw is not None and str(raw).strip() != '':
             subset[key] = str(raw).strip()
@@ -65,6 +70,19 @@ MEDIA_API_BIND_HOST = env.str('MEDIA_API_BIND_HOST', default='')
 MEDIA_API_HEALTH_PUBLIC = env.bool('MEDIA_API_HEALTH_PUBLIC', default=False)
 
 MEDIA_API_UPLOAD_RATE = _security_merged.get('MEDIA_API_UPLOAD_RATE', '30/minute')
+
+# Проверка содержимого загрузок: extension | extension_and_magic | extension_magic_av
+_content_validation_raw = (
+    _security_merged.get('MEDIA_API_CONTENT_VALIDATION')
+    or env.str('MEDIA_API_CONTENT_VALIDATION', default='extension')
+).strip().lower()
+if _content_validation_raw not in (
+    'extension',
+    'extension_and_magic',
+    'extension_magic_av',
+):
+    _content_validation_raw = 'extension'
+MEDIA_API_CONTENT_VALIDATION = _content_validation_raw
 
 # Макс. размер тела запроса — hard max (модули могут быть выше MEDIA_UPLOAD_MAX_SIZE).
 # FILE_* — порог сброса на диск, не потолок размера файла.

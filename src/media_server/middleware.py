@@ -1,19 +1,11 @@
 import logging
-import re
-import time
-from collections import defaultdict
-from threading import Lock
 
-from django.conf import settings
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
-from media_server.client_ip import resolve_client_ip
 from media_server.maintenance import MAINTENANCE_DETAIL, is_maintenance_enabled
 
 logger = logging.getLogger('media_server.middleware')
-
-_RATE_RE = re.compile(r'^(\d+)/(second|minute|hour|day)$')
 
 
 def _silence_wsgi_runserver_access() -> None:
@@ -26,16 +18,6 @@ def _silence_wsgi_runserver_access() -> None:
         return
     WSGIRequestHandler.log_message = lambda self, format, *args: None  # noqa: ARG005
     WSGIRequestHandler._ergo_access_silenced = True  # type: ignore[attr-defined]
-
-
-def _parse_rate(rate: str) -> tuple[int, float]:
-    match = _RATE_RE.match((rate or '').strip().lower())
-    if not match:
-        return 30, 60.0
-    count = int(match.group(1))
-    unit = match.group(2)
-    windows = {'second': 1.0, 'minute': 60.0, 'hour': 3600.0, 'day': 86400.0}
-    return count, windows.get(unit, 60.0)
 
 
 class MaintenanceMiddleware(MiddlewareMixin):
@@ -57,6 +39,8 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
     """Добавляет заголовки безопасности к ответам."""
 
     def process_response(self, request, response):
+        from django.conf import settings
+
         response['X-Content-Type-Options'] = 'nosniff'
         response['X-Frame-Options'] = 'DENY'
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
@@ -80,37 +64,13 @@ class SecurityHeadersMiddleware(MiddlewareMixin):
 
 
 class UploadRateLimitMiddleware(MiddlewareMixin):
-    """Ограничение частоты POST /upload/ по IP (актуально в production)."""
+    """Устарело: квота загрузки считается в UploadView (upload_quota по user_id).
 
-    _lock = Lock()
-    _hits: dict[str, list[float]] = defaultdict(list)
+    Оставлено как no-op для совместимости импортов; IP-потолок — nginx ergo_upload.
+    """
 
     def process_request(self, request):
-        if request.method != 'POST' or not request.path.rstrip('/').endswith('/upload'):
-            return None
-
-        if getattr(settings, 'DEBUG', False):
-            return None
-
-        client_ip = self._client_ip(request)
-        limit, window = _parse_rate(getattr(settings, 'MEDIA_API_UPLOAD_RATE', '30/minute'))
-        now = time.time()
-        cutoff = now - window
-
-        with self._lock:
-            bucket = self._hits[client_ip]
-            self._hits[client_ip] = [ts for ts in bucket if ts > cutoff]
-            if len(self._hits[client_ip]) >= limit:
-                logger.warning('Upload rate limit exceeded: ip=%s', client_ip)
-                return JsonResponse({'error': 'Слишком много запросов на загрузку'}, status=429)
-            self._hits[client_ip].append(now)
-
         return None
-
-    @staticmethod
-    def _client_ip(request) -> str:
-        ip = resolve_client_ip(request)
-        return ip or 'unknown'
 
 
 class RequestLoggingMiddleware(MiddlewareMixin):

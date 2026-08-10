@@ -20,6 +20,7 @@ from .client_ip import is_private_or_loopback, resolve_client_ip
 from .content_validation import ContentValidationError, validate_upload
 from .signing import verify_url, verify_upload_token
 from .storage import get_storage
+from .upload_quota import check_upload_quota
 from core.shared.system_version import get_system_version
 
 logger = logging.getLogger('media_server.views')
@@ -178,6 +179,13 @@ class UploadView(View):
                 {'error': 'Токен недействителен или истёк'},
                 status=403,
             )
+
+        quota_denied = check_upload_quota(
+            user_id=payload.get('user_id'),
+            quota=str(payload.get('quota') or 'user'),
+        )
+        if quota_denied is not None:
+            return quota_denied
 
         uploaded_file = request.FILES.get('file')
         if not uploaded_file:

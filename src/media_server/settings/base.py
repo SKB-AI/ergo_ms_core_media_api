@@ -23,6 +23,7 @@ def _media_security_merged() -> dict[str, str]:
         'ERGO_SECURITY',
         'MEDIA_URL_EXPIRATION',
         'MEDIA_API_UPLOAD_RATE',
+        'MEDIA_API_UPLOAD_RATE_ADMIN',
         'MEDIA_API_CONTENT_VALIDATION',
     ):
         raw = os.environ.get(key)
@@ -70,6 +71,10 @@ MEDIA_API_BIND_HOST = env.str('MEDIA_API_BIND_HOST', default='')
 MEDIA_API_HEALTH_PUBLIC = env.bool('MEDIA_API_HEALTH_PUBLIC', default=False)
 
 MEDIA_API_UPLOAD_RATE = _security_merged.get('MEDIA_API_UPLOAD_RATE', '30/minute')
+MEDIA_API_UPLOAD_RATE_ADMIN = _security_merged.get(
+    'MEDIA_API_UPLOAD_RATE_ADMIN',
+    '120/minute',
+)
 
 # Проверка содержимого загрузок: extension | extension_and_magic | extension_magic_av
 _content_validation_raw = (
@@ -99,7 +104,6 @@ MIDDLEWARE = [
     'media_server.middleware.MaintenanceMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'media_server.middleware.SecurityHeadersMiddleware',
-    'media_server.middleware.UploadRateLimitMiddleware',
     'media_server.middleware.RequestLoggingMiddleware',
 ]
 

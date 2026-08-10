@@ -119,7 +119,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 USE_TZ = True
-TIME_ZONE = 'UTC'
+TIME_ZONE = env.str('TIME_ZONE', default='UTC').strip() or 'UTC'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

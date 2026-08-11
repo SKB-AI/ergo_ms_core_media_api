@@ -49,6 +49,7 @@ class UploadQuotaTests(unittest.TestCase):
         self.assertIsNotNone(denied)
         self.assertEqual(denied.status_code, 429)
         self.assertIn('загрузку', json.loads(denied.content.decode('utf-8'))['error'])
+        self.assertTrue(int(denied['Retry-After']) >= 1)
 
     @override_settings(
         DEBUG=False,

@@ -36,6 +36,12 @@ def rate_for_quota(quota: str) -> str:
     return getattr(settings, 'MEDIA_API_UPLOAD_RATE', '30/minute')
 
 
+def _quota_denied_response(retry_after: float | int) -> JsonResponse:
+    response = JsonResponse({'error': 'Слишком много запросов на загрузку'}, status=429)
+    response['Retry-After'] = str(max(int(retry_after), 1))
+    return response
+
+
 def check_upload_quota(*, user_id, quota: str = 'user') -> JsonResponse | None:
     """
     Учесть одну загрузку. None — можно продолжать; JsonResponse 429 — отказ.
@@ -48,14 +54,12 @@ def check_upload_quota(*, user_id, quota: str = 'user') -> JsonResponse | None:
         uid = int(user_id)
     except (TypeError, ValueError):
         uid = 0
-    if uid <= 0:
-        return JsonResponse({'error': 'Слишком много запросов на загрузку'}, status=429)
-
     quota_norm = (quota or 'user').strip().lower()
     if quota_norm not in ('user', 'admin'):
         quota_norm = 'user'
-
     limit, window = parse_rate(rate_for_quota(quota_norm))
+    if uid <= 0:
+        return _quota_denied_response(window)
     key = f'{quota_norm}:{uid}'
     now = time.time()
     cutoff = now - window
@@ -64,13 +68,15 @@ def check_upload_quota(*, user_id, quota: str = 'user') -> JsonResponse | None:
         bucket = _hits[key]
         _hits[key] = [ts for ts in bucket if ts > cutoff]
         if len(_hits[key]) >= limit:
+            oldest = min(_hits[key])
+            retry_after = max(int(oldest + window - now) + 1, 1)
             logger.warning(
                 'Upload quota exceeded: user_id=%s quota=%s limit=%s',
                 uid,
                 quota_norm,
                 limit,
             )
-            return JsonResponse({'error': 'Слишком много запросов на загрузку'}, status=429)
+            return _quota_denied_response(retry_after)
         _hits[key].append(now)
 
     return None

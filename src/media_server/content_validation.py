@@ -1,8 +1,8 @@
 """Проверка расширения и сигнатуры содержимого загружаемых файлов (С5).
 
 Режимы MEDIA_API_CONTENT_VALIDATION:
-- extension — только расширение (дефолт кода / open / standard)
-- extension_and_magic — расширение + sniff (filetype), hardened
+- extension — только расширение (дефолт кода / open)
+- extension_and_magic — расширение + sniff (filetype), standard / hardened
 - extension_magic_av — magic + антивирус (phase 2 stub; без сканера — отказ)
 
 SVG: разрешён только при расширении .svg и sniff svg/xml (не «голый» html).

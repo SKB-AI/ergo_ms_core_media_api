@@ -1,9 +1,11 @@
 import logging
+import time
 
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
 from media_server.maintenance import MAINTENANCE_DETAIL, is_maintenance_enabled
+from media_server.request_id import apply_response_header, get_request_id, request_id_from_meta
 
 logger = logging.getLogger('media_server.middleware')
 
@@ -73,6 +75,17 @@ class UploadRateLimitMiddleware(MiddlewareMixin):
         return None
 
 
+class RequestIdMiddleware(MiddlewareMixin):
+    """Проставляет и возвращает X-Request-ID."""
+
+    def process_request(self, request):
+        request_id_from_meta(getattr(request, 'META', {}) or {})
+
+    def process_response(self, request, response):
+        apply_response_header(response)
+        return response
+
+
 class RequestLoggingMiddleware(MiddlewareMixin):
     """HTTP access в том же формате, что AccessLogMiddleware API."""
 
@@ -82,6 +95,9 @@ class RequestLoggingMiddleware(MiddlewareMixin):
         super().__init__(get_response)
         _silence_wsgi_runserver_access()
 
+    def process_request(self, request):
+        request._ergo_access_started = time.perf_counter()
+
     def process_response(self, request, response):
         try:
             method = request.method or '-'
@@ -89,7 +105,18 @@ class RequestLoggingMiddleware(MiddlewareMixin):
             path = request.path or '/'
             proto = request.META.get('SERVER_PROTOCOL', 'HTTP/1.1')
             status = getattr(response, 'status_code', '-')
-            self._access_logger.info('"%s %s %s" %s', method, path, proto, status)
+            started = getattr(request, '_ergo_access_started', None)
+            elapsed_ms = int((time.perf_counter() - started) * 1000) if started else 0
+            request_id = get_request_id() or '-'
+            self._access_logger.info(
+                '"%s %s %s" %s %dms request_id=%s',
+                method,
+                path,
+                proto,
+                status,
+                elapsed_ms,
+                request_id,
+            )
         except Exception:
             pass
         return response

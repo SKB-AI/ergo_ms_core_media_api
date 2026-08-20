@@ -91,6 +91,11 @@ def build_media_logging_config(logs_dir: Path, env_file: Path) -> dict:
                 'level': 'INFO',
                 'propagate': False,
             },
+            'httpx': {
+                'handlers': media_handlers,
+                'level': 'WARNING',
+                'propagate': False,
+            },
             'media_server': {
                 'handlers': media_handlers,
                 'level': file_level,

@@ -67,6 +67,68 @@ class UploadQuotaTests(unittest.TestCase):
         denied_admin = check_upload_quota(user_id=7, quota='admin')
         self.assertEqual(denied_admin.status_code, 429)
 
+    @override_settings(
+        DEBUG=False,
+        MEDIA_API_UPLOAD_RATE='1/minute',
+        MEDIA_API_UPLOAD_RATE_ADMIN='3/minute',
+        MEDIA_API_UPLOAD_RATE_CEILING='1000/minute',
+    )
+    def test_named_quota_uses_token_rate(self) -> None:
+        self.assertIsNone(
+            check_upload_quota(user_id=7, quota='lab_bulk', rate='2/minute'),
+        )
+        self.assertIsNone(
+            check_upload_quota(user_id=7, quota='lab_bulk', rate='2/minute'),
+        )
+        denied = check_upload_quota(user_id=7, quota='lab_bulk', rate='2/minute')
+        self.assertEqual(denied.status_code, 429)
+
+    @override_settings(
+        DEBUG=False,
+        MEDIA_API_UPLOAD_RATE='1/minute',
+        MEDIA_API_UPLOAD_RATE_ADMIN='3/minute',
+        MEDIA_API_UPLOAD_RATE_CEILING='2/minute',
+    )
+    def test_token_rate_capped_to_ceiling(self) -> None:
+        self.assertIsNone(
+            check_upload_quota(user_id=3, quota='lab_bulk', rate='1000/minute'),
+        )
+        self.assertIsNone(
+            check_upload_quota(user_id=3, quota='lab_bulk', rate='1000/minute'),
+        )
+        denied = check_upload_quota(user_id=3, quota='lab_bulk', rate='1000/minute')
+        self.assertEqual(denied.status_code, 429)
+
+    @override_settings(
+        DEBUG=False,
+        MEDIA_API_UPLOAD_RATE='2/minute',
+        MEDIA_API_UPLOAD_RATE_ADMIN='5/minute',
+    )
+    def test_unknown_slug_without_rate_falls_back_to_user(self) -> None:
+        self.assertIsNone(check_upload_quota(user_id=4, quota='nope'))
+        self.assertIsNone(check_upload_quota(user_id=4, quota='nope'))
+        denied = check_upload_quota(user_id=4, quota='nope')
+        self.assertEqual(denied.status_code, 429)
+
+    @override_settings(
+        DEBUG=False,
+        MEDIA_API_UPLOAD_RATE='1/minute',
+        MEDIA_API_UPLOAD_RATE_ADMIN='1/minute',
+        MEDIA_API_UPLOAD_RATE_CEILING='10/minute',
+    )
+    def test_named_quota_bucket_independent_of_user(self) -> None:
+        self.assertIsNone(check_upload_quota(user_id=9, quota='user'))
+        denied_user = check_upload_quota(user_id=9, quota='user')
+        self.assertEqual(denied_user.status_code, 429)
+        self.assertIsNone(
+            check_upload_quota(user_id=9, quota='lab_bulk', rate='2/minute'),
+        )
+        self.assertIsNone(
+            check_upload_quota(user_id=9, quota='lab_bulk', rate='2/minute'),
+        )
+        denied_named = check_upload_quota(user_id=9, quota='lab_bulk', rate='2/minute')
+        self.assertEqual(denied_named.status_code, 429)
+
     @override_settings(DEBUG=True, MEDIA_API_UPLOAD_RATE='1/minute')
     def test_debug_skips_quota(self) -> None:
         for _ in range(5):

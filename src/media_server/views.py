@@ -183,6 +183,7 @@ class UploadView(View):
         quota_denied = check_upload_quota(
             user_id=payload.get('user_id'),
             quota=str(payload.get('quota') or 'user'),
+            rate=payload.get('rate'),
         )
         if quota_denied is not None:
             return quota_denied

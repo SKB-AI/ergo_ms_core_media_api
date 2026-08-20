@@ -75,6 +75,10 @@ MEDIA_API_UPLOAD_RATE_ADMIN = _security_merged.get(
     'MEDIA_API_UPLOAD_RATE_ADMIN',
     '120/minute',
 )
+MEDIA_API_UPLOAD_RATE_CEILING = env.str(
+    'MEDIA_API_UPLOAD_RATE_CEILING',
+    default='1000/minute',
+).strip() or '1000/minute'
 
 # Проверка содержимого загрузок: extension | extension_and_magic | extension_magic_av
 _content_validation_raw = (
@@ -104,6 +108,7 @@ MIDDLEWARE = [
     'media_server.middleware.MaintenanceMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'media_server.middleware.SecurityHeadersMiddleware',
+    'media_server.middleware.RequestIdMiddleware',
     'media_server.middleware.RequestLoggingMiddleware',
 ]
 
